@@ -14,7 +14,7 @@ func main() {
 
 	actionPrompt := promptui.Select{
 		Label: "Select an action:",
-		Items: []string{"Create stack", "Remove stack"},
+		Items: []string{"Create stack", "Remove stack", "List containers"},
 	}
 
 	_, action, err := actionPrompt.Run()
@@ -28,6 +28,8 @@ func main() {
 		createStack(stackFolder)
 	case "Remove stack":
 		removeStack(stackFolder)
+	case "List containers":
+		listContainers(stackFolder)
 	default:
 		fmt.Println("Invalid action selected.")
 	}
@@ -114,6 +116,45 @@ func removeStack(stackFolder string) {
 	}
 
 	fmt.Println("Stack removed successfully!")
+}
+
+func listContainers(stackFolder string) {
+	stackDirs := listSubdirectories(stackFolder)
+
+	if len(stackDirs) == 0 {
+		fmt.Println("No subdirectories found in the folder.")
+		return
+	}
+
+	var options []string
+	for _, stackDir := range stackDirs {
+		baseDir := filepath.Base(stackDir)
+		options = append(options, baseDir)
+	}
+
+	prompt := promptui.Select{
+		Label: "Select a stack to list containers:",
+		Items: options,
+	}
+
+	selectedIdx, _, err := prompt.Run()
+	if err != nil {
+		fmt.Println("Prompt failed:", err)
+		return
+	}
+
+	selectedDir := stackDirs[selectedIdx]
+
+	// Execute docker-compose ps for the selected stack
+	cmd := exec.Command("docker-compose", "-f", filepath.Join(selectedDir, "docker-compose.yaml"), "ps")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("Error listing containers:", err)
+		return
+	}
 }
 
 func listSubdirectories(folderPath string) []string {
