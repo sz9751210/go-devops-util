@@ -12,28 +12,35 @@ import (
 func main() {
 	stackFolder := "stack" // Folder containing the subdirectories with YAML files
 
-	actionPrompt := promptui.Select{
-		Label: "Select an action:",
-		Items: []string{"Create Stack", "Remove Stack", "Show Stack Status", "Show Docker Stats"},
-	}
+	for {
+		actionPrompt := promptui.Select{
+			Label: "Select an action:",
+			Items: []string{"Create Stack", "Remove Stack", "Show Stack Status", "Show Docker Stats", "Exit"},
+		}
 
-	_, action, err := actionPrompt.Run()
-	if err != nil {
-		fmt.Println("Action selection failed:", err)
-		return
-	}
+		_, action, err := actionPrompt.Run()
+		if err != nil {
+			fmt.Println("Action selection failed:", err)
+			return
+		}
 
-	switch action {
-	case "Create Stack":
-		createStack(stackFolder)
-	case "Remove Stack":
-		removeStack(stackFolder)
-	case "Show Stack Status":
-		showStackStatus(stackFolder)
-	case "Show Docker Stats":
-		showDockerStats(stackFolder)
-	default:
-		fmt.Println("Invalid action selected.")
+		if action == "Exit" {
+			fmt.Println("Exiting the program.")
+			return
+		}
+
+		switch action {
+		case "Create Stack":
+			createStack(stackFolder)
+		case "Remove Stack":
+			removeStack(stackFolder)
+		case "Show Stack Status":
+			showStackStatus(stackFolder)
+		case "Show Docker Stats":
+			showDockerStats(stackFolder)
+		default:
+			fmt.Println("Invalid action selected.")
+		}
 	}
 }
 
