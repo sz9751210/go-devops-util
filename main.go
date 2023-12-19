@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/manifoldco/promptui"
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	"github.com/manifoldco/promptui"
+	"strings"
 )
 
 func main() {
@@ -14,7 +14,7 @@ func main() {
 
 	actionPrompt := promptui.Select{
 		Label: "Select an action:",
-		Items: []string{"Create stack", "Remove stack", "List containers"},
+		Items: []string{"Create Stack", "Remove Stack", "Show Stack Status", "Show Docker Stats"},
 	}
 
 	_, action, err := actionPrompt.Run()
@@ -24,12 +24,14 @@ func main() {
 	}
 
 	switch action {
-	case "Create stack":
+	case "Create Stack":
 		createStack(stackFolder)
-	case "Remove stack":
+	case "Remove Stack":
 		removeStack(stackFolder)
-	case "List containers":
-		listContainers(stackFolder)
+	case "Show Stack Status":
+		showStackStatus(stackFolder)
+	case "Show Docker Stats":
+		showDockerStats(stackFolder)
 	default:
 		fmt.Println("Invalid action selected.")
 	}
@@ -118,45 +120,6 @@ func removeStack(stackFolder string) {
 	fmt.Println("Stack removed successfully!")
 }
 
-func listContainers(stackFolder string) {
-	stackDirs := listSubdirectories(stackFolder)
-
-	if len(stackDirs) == 0 {
-		fmt.Println("No subdirectories found in the folder.")
-		return
-	}
-
-	var options []string
-	for _, stackDir := range stackDirs {
-		baseDir := filepath.Base(stackDir)
-		options = append(options, baseDir)
-	}
-
-	prompt := promptui.Select{
-		Label: "Select a stack to list containers:",
-		Items: options,
-	}
-
-	selectedIdx, _, err := prompt.Run()
-	if err != nil {
-		fmt.Println("Prompt failed:", err)
-		return
-	}
-
-	selectedDir := stackDirs[selectedIdx]
-
-	// Execute docker-compose ps for the selected stack
-	cmd := exec.Command("docker-compose", "-f", filepath.Join(selectedDir, "docker-compose.yaml"), "ps")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Run()
-	if err != nil {
-		fmt.Println("Error listing containers:", err)
-		return
-	}
-}
-
 func listSubdirectories(folderPath string) []string {
 	var subDirs []string
 
@@ -177,4 +140,97 @@ func listSubdirectories(folderPath string) []string {
 	}
 
 	return subDirs
+}
+
+func showStackStatus(stackFolder string) {
+	stackDirs := listSubdirectories(stackFolder)
+
+	if len(stackDirs) == 0 {
+		fmt.Println("No subdirectories found in the folder.")
+		return
+	}
+
+	var options []string
+	for _, stackDir := range stackDirs {
+		baseDir := filepath.Base(stackDir)
+		options = append(options, baseDir)
+	}
+
+	prompt := promptui.Select{
+		Label: "Select a stack to show status:",
+		Items: options,
+	}
+
+	selectedIdx, _, err := prompt.Run()
+	if err != nil {
+		fmt.Println("Prompt failed:", err)
+		return
+	}
+
+	selectedDir := stackDirs[selectedIdx]
+
+	// Execute docker-compose ps for the selected stack
+	cmd := exec.Command("docker-compose", "-f", filepath.Join(selectedDir, "docker-compose.yaml"), "ps")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("Error showing stack status:", err)
+		return
+	}
+}
+
+func showDockerStats(stackFolder string) {
+	stackDirs := listSubdirectories(stackFolder)
+
+	if len(stackDirs) == 0 {
+		fmt.Println("No subdirectories found in the folder.")
+		return
+	}
+
+	var options []string
+	for _, stackDir := range stackDirs {
+		baseDir := filepath.Base(stackDir)
+		options = append(options, baseDir)
+	}
+
+	prompt := promptui.Select{
+		Label: "Select a stack to show Docker stats:",
+		Items: options,
+	}
+
+	selectedIdx, _, err := prompt.Run()
+	if err != nil {
+		fmt.Println("Prompt failed:", err)
+		return
+	}
+
+	selectedDir := stackDirs[selectedIdx]
+
+	// Execute docker-compose ps to get container names
+	cmdPs := exec.Command("docker-compose", "-f", filepath.Join(selectedDir, "docker-compose.yaml"), "ps", "-q")
+	cmdPs.Stderr = os.Stderr
+
+	containerIDs, err := cmdPs.Output()
+	if err != nil {
+		fmt.Println("Error retrieving container IDs:", err)
+		return
+	}
+
+	// Split the containerIDs string into individual IDs
+	ids := strings.Fields(string(containerIDs))
+
+	// Execute docker stats --no-stream for each container
+	for _, id := range ids {
+		cmdStats := exec.Command("docker", "stats", "--no-stream", id)
+		cmdStats.Stdout = os.Stdout
+		cmdStats.Stderr = os.Stderr
+
+		err = cmdStats.Run()
+		if err != nil {
+			fmt.Println("Error showing Docker stats:", err)
+			return
+		}
+	}
 }
